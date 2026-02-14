@@ -16,13 +16,15 @@ import {
   Smile,
   AlertTriangle
 } from 'lucide-react';
+import { db } from './firebase';
+import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
 
 // 初期のアプリデータ（サンプル）
 const INITIAL_APPS = [
-  { id: 1, name: 'こくご', url: 'https://www.nhk.or.jp/school/kokugo/', icon: 'book', color: 'bg-red-400' },
-  { id: 2, name: 'さんすう', url: 'https://www.nhk.or.jp/school/sansuu/', icon: 'calc', color: 'bg-blue-400' },
-  { id: 3, name: 'おえかき', url: 'https://quickdraw.withgoogle.com/', icon: 'art', color: 'bg-yellow-400' },
-  { id: 4, name: 'タイピング', url: 'https://typing.twi1.me/', icon: 'game', color: 'bg-purple-400' },
+  { name: 'こくご', url: 'https://www.nhk.or.jp/school/kokugo/', icon: 'book', color: 'bg-red-400' },
+  { name: 'さんすう', url: 'https://www.nhk.or.jp/school/sansuu/', icon: 'calc', color: 'bg-blue-400' },
+  { name: 'おえかき', url: 'https://quickdraw.withgoogle.com/', icon: 'art', color: 'bg-yellow-400' },
+  { name: 'タイピング', url: 'https://typing.twi1.me/', icon: 'game', color: 'bg-purple-400' },
 ];
 
 const ICONS = {
@@ -58,7 +60,7 @@ const ICON_OPTIONS = [
 ];
 
 export default function App() {
-  const [apps, setApps] = useState(INITIAL_APPS);
+  const [apps, setApps] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [password, setPassword] = useState('');
@@ -73,20 +75,33 @@ export default function App() {
     // 時計の更新
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
-    // ローカルストレージから読み込み（実装時はコメントアウトを外して有効化）
-    const savedApps = localStorage.getItem('schoolApps');
-    if (savedApps) {
-      setApps(JSON.parse(savedApps));
-    }
+    // Firestoreからデータを取得（リアルタイム更新）
+    const q = query(collection(db, 'apps'), orderBy('createdAt', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const appsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-    return () => clearInterval(timer);
+      // データが空の場合、初期データを投入（初回のみ）
+      if (appsData.length === 0 && !localStorage.getItem('initialized')) {
+        INITIAL_APPS.forEach(async (app) => {
+          await addDoc(collection(db, 'apps'), {
+            ...app,
+            createdAt: new Date()
+          });
+        });
+        localStorage.setItem('initialized', 'true');
+      } else {
+        setApps(appsData);
+      }
+    });
+
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
   }, []);
-
-  // データ保存
-  const saveApps = (newApps) => {
-    setApps(newApps);
-    localStorage.setItem('schoolApps', JSON.stringify(newApps));
-  };
 
   // 管理画面ログイン
   const handleLogin = () => {
@@ -105,10 +120,9 @@ export default function App() {
   };
 
   // アプリ削除実行
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (deleteTargetId !== null) {
-      const newApps = apps.filter(app => app.id !== deleteTargetId);
-      saveApps(newApps);
+      await deleteDoc(doc(db, 'apps', deleteTargetId));
       setDeleteTargetId(null);
     }
   };
@@ -125,18 +139,19 @@ export default function App() {
   };
 
   // アプリ保存（追加・更新）
-  const handleSaveApp = () => {
+  const handleSaveApp = async () => {
     if (!formData.name || !formData.url) return;
 
-    let newApps;
     if (editingApp.id === 'new') {
-      const newId = Math.max(...apps.map(a => a.id), 0) + 1;
-      newApps = [...apps, { ...formData, id: newId }];
+      await addDoc(collection(db, 'apps'), {
+        ...formData,
+        createdAt: new Date()
+      });
     } else {
-      newApps = apps.map(a => a.id === editingApp.id ? { ...formData, id: editingApp.id } : a);
+      const { id, ...data } = formData;
+      await updateDoc(doc(db, 'apps', editingApp.id), data);
     }
 
-    saveApps(newApps);
     setEditingApp(null);
   };
 

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "helpful-passage-430405-b3"
+  },
+  "targets": {
+    "helpful-passage-430405-b3": {
+      "hosting": {
+        "ichi-nensei-app": [
+          "ichi-nensei-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
