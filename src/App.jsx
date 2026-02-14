@@ -105,7 +105,7 @@ export default function App() {
 
   // 管理画面ログイン
   const handleLogin = () => {
-    if (password === '1234') {
+    if (password === '0807') {
       setIsAdmin(true);
       setShowAdminLogin(false);
       setPassword('');
