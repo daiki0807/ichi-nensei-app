@@ -289,7 +289,7 @@ export default function App() {
               <Settings className="text-slate-400" />
               せんせいの ぺーじ
             </h3>
-            <p className="mb-4 text-slate-500">パスワードを いれてください (1234)</p>
+            <p className="mb-4 text-slate-500">パスワードを いれてください</p>
             <input
               type="password"
               value={password}
